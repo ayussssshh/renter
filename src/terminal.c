@@ -7,7 +7,6 @@
 
 // prowide the data of the terminal window
 // render the charFrameBuffer
-// runs a vidoe loop
 
 struct winsize getTerminalSize(){
 
