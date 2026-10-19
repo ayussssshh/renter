@@ -1,8 +1,16 @@
-#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb/stb_image.h>
 #include "image.h"
 #include <string.h>
 #include <stdio.h>
+#include <sys/ioctl.h>
+#include <math.h>
+#include "stb_image_resize2.h"
+
+
+
+
+
 
 Image_Data *get_imagePixels(char imagePath[])
 {
@@ -89,3 +97,132 @@ Image_Data *TBW_pixels(Image_Data *image)
 
     return BW_image;
 }
+
+
+
+
+int *get_IRSDimensions(struct winsize ws, Image_Data *image){
+
+    int *new_dimension = malloc(sizeof(int) * 2); // new_dimension[0] is width, new_dimension[1] is height
+
+    if (new_dimension == NULL)
+    {
+        fprintf(stderr, "get_IRSDimensions(): memory allocation failed");
+
+        return NULL;
+    }
+    
+
+    float s, width_scale, height_scale;
+
+    width_scale = (float)ws.ws_xpixel / image->width;
+    height_scale = (float)ws.ws_ypixel / image->height;
+
+    if (width_scale < height_scale)
+    {
+        s = width_scale;
+    }
+    else
+    {
+        s = height_scale;
+    }
+
+    new_dimension[0] = s * image->width;
+    new_dimension[1] = s * image->height; 
+
+    printf("%f scaling factor\n" , s);
+    
+    return new_dimension;
+}
+
+
+
+
+
+Image_Data *resize_image(const Image_Data *original, int available_w, int available_h){
+
+    // if (!original || !original->pixels ||
+    //     original->width <= 0 || original->height <= 0 ||
+    //     available_w <= 0 || available_w <= 0 ||
+    //     original->channels < 1 || original->channels > 4) {
+    //     return NULL;
+    // }
+
+    float W_ratio, H_ratio, s;
+    int new_width, new_height;
+
+    W_ratio = (float)available_w/original->width;
+    H_ratio = (float)available_h/original->height;
+
+    if (W_ratio<H_ratio)
+    {
+        s = W_ratio;
+    }
+    else
+    {
+        s = H_ratio;
+    }
+    
+    new_width = s * original->width;
+    new_height = s * original->height;
+
+    size_t pixels = (size_t)new_width * (size_t)new_height;
+
+    if (pixels > SIZE_MAX / (size_t)original->channels)
+        return NULL;
+
+    size_t bytes = pixels * (size_t)original->channels;
+
+    Image_Data *result = malloc(sizeof(*result));
+    if (!result)
+        return NULL;
+
+    result->pixels = malloc(bytes);
+    if (!result->pixels) {
+        free(result);
+        return NULL;
+    }
+
+    result->width = new_width;
+    result->height = new_height;
+    result->channels = original->channels;
+
+    stbir_pixel_layout layout;
+
+    switch (original->channels) {
+        case 1: layout = STBIR_1CHANNEL; break;
+        case 2: layout = STBIR_2CHANNEL; break;
+        case 3: layout = STBIR_RGB; break;
+        case 4: layout = STBIR_RGBA; break;
+        default:
+            free(result->pixels);
+            free(result);
+            return NULL;
+    }
+
+    unsigned char *output = stbir_resize_uint8_srgb(
+        original->pixels,
+        original->width,
+        original->height,
+        0,
+        result->pixels,
+        new_width,
+        new_height,
+        0,
+        layout
+    );
+
+    if (!output) {
+        free(result->pixels);
+        free(result);
+        return NULL;
+    }
+
+    return result;
+}
+
+
+
+
+
+
