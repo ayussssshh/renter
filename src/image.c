@@ -1,4 +1,6 @@
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 #include "image.h"
 #include <string.h>
@@ -6,6 +8,7 @@
 #include <sys/ioctl.h>
 #include <math.h>
 #include "stb_image_resize2.h"
+#include "stb_image_write.h"
 
 
 
@@ -129,8 +132,6 @@ int *get_IRSDimensions(struct winsize ws, Image_Data *image){
 
     new_dimension[0] = s * image->width;
     new_dimension[1] = s * image->height; 
-
-    printf("%f scaling factor\n" , s);
     
     return new_dimension;
 }
@@ -141,12 +142,12 @@ int *get_IRSDimensions(struct winsize ws, Image_Data *image){
 
 Image_Data *resize_image(const Image_Data *original, int available_w, int available_h){
 
-    // if (!original || !original->pixels ||
-    //     original->width <= 0 || original->height <= 0 ||
-    //     available_w <= 0 || available_w <= 0 ||
-    //     original->channels < 1 || original->channels > 4) {
-    //     return NULL;
-    // }
+    if (!original || !original->pixels ||
+        original->width <= 0 || original->height <= 0 ||
+        available_w <= 0 || available_w <= 0 ||
+        original->channels < 1 || original->channels > 4) {
+        return NULL;
+    }
 
     float W_ratio, H_ratio, s;
     int new_width, new_height;
@@ -222,7 +223,62 @@ Image_Data *resize_image(const Image_Data *original, int available_w, int availa
 }
 
 
+int save_image(const Image_Data *image, const char *filename){
+        if (image == NULL || image->pixels == NULL)
+            return 0;
+
+        int stride = image->width * image->channels;
+
+        return stbi_write_png(
+            filename,
+            image->width,
+            image->height,
+            image->channels,
+            image->pixels,
+            stride);
+}
 
 
 
+
+
+
+unsigned char *get_grayScale_img(Image_Data *image)
+{
+    if (image == NULL || image->pixels == NULL ||
+        image->width <= 0 || image->height <= 0 ||
+        (image->channels != 3 && image->channels != 4))
+    {
+        fprintf(stderr, "get_grayScale_img(): invalid image\n");
+        return NULL;
+    }
+
+    size_t total_pixels =
+        (size_t)image->width * (size_t)image->height;
+
+    unsigned char *grayScale_img = malloc(total_pixels);
+
+    if (grayScale_img == NULL)
+    {
+        fprintf(stderr, "get_grayScale_img(): allocation failed\n");
+        return NULL;
+    }
+
+    for (size_t i = 0; i < total_pixels; i++)
+    {
+        size_t src = i * (size_t)image->channels;
+
+        unsigned char red   = image->pixels[src];
+        unsigned char green = image->pixels[src + 1];
+        unsigned char blue  = image->pixels[src + 2];
+
+        grayScale_img[i] = (unsigned char)(
+            0.299 * red +
+            0.587 * green +
+            0.114 * blue
+        );
+    }
+
+    return grayScale_img;
+}
 

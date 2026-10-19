@@ -18,6 +18,8 @@ Image_Data *resize_image(const Image_Data *original, int new_width, int new_heig
 Image_Data *get_imagePixels(char imagePath[]);
 Image_Data *TBW_pixels(Image_Data *image);
 int *get_IRSDimensions(struct winsize ws, Image_Data *image);
+int save_image(const Image_Data *image, const char *filename);
+unsigned char *get_grayScale_img(Image_Data *image);
 
 
-#endif
+#endif // IMAGE_H
