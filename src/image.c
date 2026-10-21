@@ -1,14 +1,16 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
+#include "stb_image.h"
 #include "image.h"
 #include <string.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <math.h>
+#include <stdint.h>
 #include "stb_image_resize2.h"
 #include "stb_image_write.h"
+#include <limits.h>
 
 
 
@@ -280,5 +282,320 @@ unsigned char *get_grayScale_img(Image_Data *image)
     }
 
     return grayScale_img;
+}
+
+
+
+
+
+// unsigned char *AM_grayscale(unsigned char *grayscale_img, int grayscale_w, int grayscale_h, int terminal_h, int terminal_w){
+
+//     size_t tw = (size_t)terminal_w;
+//     size_t th = (size_t)terminal_h;
+//     size_t gw = (size_t)grayscale_w;
+//     size_t gh = (size_t)grayscale_h;
+
+//     unsigned char *AM_grayscale =
+//         malloc(sizeof(unsigned char) * tw * th);
+
+//     if (AM_grayscale == NULL)
+//     {
+//         fprintf(stderr, "AM_grayscale(): allocation failed\n");
+//         return NULL;
+//     }
+
+//     size_t left_margin = (tw - gw) / 2;
+//     size_t right_margin = tw - gw - left_margin;
+
+//     for (size_t i = 0; i < tw * th; i++)
+//     {
+//         AM_grayscale[i] = 0;
+
+//         if (i % tw == (tw - gw))
+//         {
+//             i += (tw - gw);
+//         }
+//         else
+//         {
+//                 i++;
+//         }
+//     }
+
+//     for (size_t i = 0; i < tw * th; i++)
+//     {
+//         if(i % tw < (tw - gw)){
+//             i++;
+//         }
+//         else{
+//             AM_grayscale[i] = grayscale_img[i];
+//         }
+//     }
+    
+//     return AM_grayscale;
+// }
+
+
+
+
+unsigned char *AM_grayscale(
+    unsigned char *grayscale_img,
+    int grayscale_w,
+    int grayscale_h,
+    int terminal_h,
+    int terminal_w
+) {
+    if (grayscale_img == NULL ||
+        grayscale_w <= 0 || grayscale_h <= 0 ||
+        terminal_w <= 0 || terminal_h <= 0) {
+        fprintf(stderr, "AM_grayscale(): invalid arguments\n");
+        return NULL;
+    }
+
+    size_t tw = (size_t)terminal_w;
+    size_t th = (size_t)terminal_h;
+    size_t gw = (size_t)grayscale_w;
+    size_t gh = (size_t)grayscale_h;
+
+    unsigned char *AM_grayscale = malloc(sizeof(unsigned char) * tw * th);
+
+    if (AM_grayscale == NULL) {
+        fprintf(stderr, "AM_grayscale(): allocation failed\n");
+        return NULL;
+    }
+
+    // Copy only the image area that fits inside the terminal.
+    size_t copy_w = (gw < tw) ? gw : tw;
+    size_t copy_h = (gh < th) ? gh : th;
+
+    // Align the image to the right.
+    size_t left_margin = tw - copy_w;
+
+    for (size_t y = 0; y < copy_h; y++) {
+        for (size_t x = 0; x < copy_w; x++) {
+            size_t src_index = y * gw + x;
+            size_t dst_index = y * tw + left_margin + x;
+
+            AM_grayscale[dst_index] = grayscale_img[src_index];
+        }
+    }
+
+    return AM_grayscale;
+}
+
+
+
+
+
+// Image_Data *get_downscale_img(Image_Data *src_image, int available_w, int available_h){
+
+//     // check the all input of this function
+
+//     float W_ratio, H_ratio, s;
+//     int new_width, new_height;
+
+//     W_ratio = (float)available_w/src_image->width;
+//     H_ratio = (float)available_h/src_image->height;
+
+//     if (W_ratio<H_ratio)
+//     {
+//         s = W_ratio;
+//     }
+//     else
+//     {
+//         s = H_ratio;
+//     }
+    
+//     new_width = s * src_image->width;
+//     new_height = s * src_image->height;
+
+//     Image_Data *downscaled_img = malloc(sizeof(Image_Data));
+
+//     if (downscaled_img == NULL)
+//     {
+//         fprintf(stderr, "get_downscale_img(): allocation failed\n");
+//         return NULL;
+//     }
+
+//     downscaled_img->pixels = malloc(sizeof(unsigned char) * new_height * new_width);
+
+//     if (downscaled_img->pixels == NULL)
+//     {
+//         fprintf(stderr, "get_downscale_img(): pixel allocation failed\n");
+//         free(downscaled_img);
+//         return NULL;
+//     }
+
+//     size_t scale_factor_y = (size_t)src_image->height/(size_t)new_height;
+//     size_t scale_factor_x = (size_t)src_image->width/(size_t)new_width;
+    
+//     for (size_t downscaled_pixel_y = 0; downscaled_pixel_y < (size_t)new_height; downscaled_pixel_y++)
+//     {
+
+//         for (size_t downscaled_pixel_x = 0; downscaled_pixel_x < (size_t)new_width; downscaled_pixel_y++)
+//         {
+        
+//             size_t src_block_x = scale_factor_x * downscaled_pixel_x;
+//             size_t src_block_y = scale_factor_y * downscaled_pixel_y;
+
+//             size_t src_block_start_index = src_block_y * src_image->width + src_block_x;
+
+//             uint64_t src_block_sum = 0;
+
+//             for (size_t src_block_y = 0; src_block_y < scale_factor_y; src_block_y++)
+//             {
+                
+//                 for (size_t src_block_x = 0; src_block_x < scale_factor_x; src_block_x++)
+//                 {
+                    
+//                     size_t src_block_index = src_block_start_index + src_block_y*(size_t)src_image->width + src_block_x;
+
+//                     src_block_sum += src_image->pixels[src_block_index];
+
+//                 }
+
+//             }
+
+
+//             unsigned char downscaled_pixel_value = src_block_sum/(scale_factor_x * scale_factor_y);
+
+//             size_t downscaled_pixel_index = downscaled_pixel_y * new_width + downscaled_pixel_x;
+
+//             downscaled_img->pixels[downscaled_pixel_index] = downscaled_pixel_value;
+            
+//         }
+
+        
+//     }
+
+//     downscaled_img->height = new_height;
+//     downscaled_img->width = new_width;
+//     downscaled_img->channels = src_image->channels;
+    
+//     return downscaled_img;
+
+// }
+
+
+
+
+// ai code
+
+Image_Data *get_downscale_img(
+    Image_Data *src_image,
+    int available_w,
+    int available_h
+) {
+    // 1. Validate input.
+    if (src_image == NULL ||
+        src_image->pixels == NULL ||
+        src_image->width <= 0 ||
+        src_image->height <= 0 ||
+        available_w <= 0 ||
+        available_h <= 0) {
+        return NULL;
+    }
+
+    // 2. Calculate a scale that fits inside the available area.
+    double width_ratio =
+        (double)available_w / src_image->width;
+
+    double height_ratio =
+        (double)available_h / src_image->height;
+
+    double scale = width_ratio < height_ratio
+                 ? width_ratio
+                 : height_ratio;
+
+    // Do not enlarge the source image.
+    if (scale > 1.0) {
+        scale = 1.0;
+    }
+
+    int new_width = (int)(src_image->width * scale);
+    int new_height = (int)(src_image->height * scale);
+
+    // Keep dimensions at least one pixel.
+    if (new_width < 1) new_width = 1;
+    if (new_height < 1) new_height = 1;
+
+    size_t output_width = (size_t)new_width;
+    size_t output_height = (size_t)new_height;
+
+    // 3. Check allocation size for overflow.
+    if (output_width > SIZE_MAX / output_height) {
+        return NULL;
+    }
+
+    size_t output_pixel_count = output_width * output_height;
+
+    // 4. Allocate the output image.
+    Image_Data *downscaled_img = malloc(sizeof(*downscaled_img));
+
+    if (downscaled_img == NULL) {
+        fprintf(stderr, "get_downscale_img(): allocation failed\n");
+        return NULL;
+    }
+
+    downscaled_img->pixels =
+        malloc(output_pixel_count * sizeof(*downscaled_img->pixels));
+
+    if (downscaled_img->pixels == NULL) {
+        fprintf(stderr, "get_downscale_img(): pixel allocation failed\n");
+        free(downscaled_img);
+        return NULL;
+    }
+
+    downscaled_img->width = new_width;
+    downscaled_img->height = new_height;
+    downscaled_img->channels = src_image->channels;
+
+
+    // 5. Visit every output pixel.
+    for (size_t output_y = 0; output_y < output_height; output_y++) {
+        for (size_t output_x = 0; output_x < output_width; output_x++) {
+
+            // Find the source rectangle assigned to this output pixel.
+            size_t source_x_start =
+                output_x * (size_t)src_image->width / output_width;
+
+            size_t source_x_end =
+                (output_x + 1) * (size_t)src_image->width / output_width;
+
+            size_t source_y_start =
+                output_y * (size_t)src_image->height / output_height;
+
+            size_t source_y_end =
+                (output_y + 1) * (size_t)src_image->height / output_height;
+
+            uint64_t pixel_sum = 0;
+            size_t pixel_count = 0;
+
+            // Sum all source pixels in this rectangle.
+            for (size_t source_y = source_y_start;
+                 source_y < source_y_end;
+                 source_y++) {
+
+                for (size_t source_x = source_x_start;
+                     source_x < source_x_end;
+                     source_x++) {
+
+                    size_t source_index =
+                        source_y * (size_t)src_image->width + source_x;
+
+                    pixel_sum += src_image->pixels[source_index];
+                    pixel_count++;
+                }
+            }
+
+            // Calculate the average and store the output pixel.
+            size_t output_index =
+                output_y * output_width + output_x;
+
+            downscaled_img->pixels[output_index] =
+                (unsigned char)(pixel_sum / pixel_count);
+        }
+    }
+
+    return downscaled_img;
 }
 

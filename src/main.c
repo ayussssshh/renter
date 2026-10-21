@@ -2,27 +2,63 @@
 #include "terminal.h"
 #include "framebuffer.h"
 #include <sys/ioctl.h>
-
+#include <stdlib.h>
 
 int main(void)
 {
 
-    Image_Data *input_image = get_imagePixels("/home/ayush/c_projects/renter/Screenshot from 2026-05-23 18-47-46.png");
+    Image_Data *input_image = get_imagePixels("/home/adi/c_projects/renter/images/mountain-landscape-3840x2160-26973.png");
 
     Image_Data *BW_input_image = TBW_pixels(input_image);
 
     struct winsize ws = getTerminalSize();
 
-    Image_Data *output_image = resize_image(BW_input_image, ws.ws_col, ws.ws_row);
+    
+
+    Image_Data *rezied_output =
+        resize_image(BW_input_image, ws.ws_xpixel, ws.ws_ypixel);
+
+    save_image(rezied_output, "output1.png");
+
+    Image_Data *output_image = get_downscale_img(rezied_output,ws.ws_col, ws.ws_row);
+
+    save_image(output_image, "output2.png");
+
+    if (output_image == NULL)
+    {
+        fprintf(stderr, "Failed to resize image\n");
+        return 1;
+    }
 
     unsigned char *grayScale_img = get_grayScale_img(output_image);
 
-    char *framebuffer = get_framebuffer(ws.ws_row, ws.ws_col, grayScale_img);
+    if (grayScale_img == NULL)
+    {
+        fprintf(stderr, "Failed to create grayscale image\n");
+        return 1;
+    }
 
-    size_t length = (size_t)ws.ws_col * (size_t)ws.ws_row;
+    char *framebuffer = get_framebuffer(
+        output_image->height,
+        output_image->width,
+        grayScale_img,
+        output_image->width);
 
-    int x = paintTerminal(framebuffer, length);
+    if (framebuffer == NULL)
+    {
+        fprintf(stderr, "Failed to create framebuffer\n");
+        return 1;
+    }
 
-    return 0;
+    size_t length =
+        (size_t)output_image->height *
+        ((size_t)output_image->width + 1);
 
+    if (paintTerminal(framebuffer, length) == -1)
+    {
+        perror("paintTerminal");
+    }
+
+    free(framebuffer);
+    free(grayScale_img);
 }
