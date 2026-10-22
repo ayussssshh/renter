@@ -13,16 +13,8 @@ int main(void)
 
     struct winsize ws = getTerminalSize();
 
-    
-
-    Image_Data *rezied_output =
-        resize_image(BW_input_image, ws.ws_xpixel, ws.ws_ypixel);
-
-    save_image(rezied_output, "output1.png");
-
-    Image_Data *output_image = get_downscale_img(rezied_output,ws.ws_col, ws.ws_row);
-
-    save_image(output_image, "output2.png");
+    Image_Data *output_image =
+        resize_image(BW_input_image, ws.ws_col, ws.ws_row);
 
     if (output_image == NULL)
     {
@@ -52,7 +44,7 @@ int main(void)
 
     size_t length =
         (size_t)output_image->height *
-        ((size_t)output_image->width + 1);
+        (2*(size_t)output_image->width + 1);
 
     if (paintTerminal(framebuffer, length) == -1)
     {
