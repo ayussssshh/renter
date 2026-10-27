@@ -4,10 +4,10 @@
 #include <sys/ioctl.h>
 #include <stdlib.h>
 
-int main(void)
+int main(int argc, char *argv[])
 {
 
-    Image_Data *input_image = get_imagePixels("/home/adi/c_projects/renter/images/mountain-landscape-3840x2160-26973.png");
+    Image_Data *input_image = get_imagePixels(argv[1]);
 
     Image_Data *BW_input_image = TBW_pixels(input_image);
 
